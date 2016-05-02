@@ -18,7 +18,7 @@ import kohdeluokat.*;
 
 
 public class Dao {
-	private Connection yhdista() throws SQLException {
+	private Connection yhdista() throws SQLException { // yhdistetään tietokantaan
 		Connection tietokantayhteys = null;
 		// Alkumääritykset
 		String JDBCAjuri = "org.mariadb.jdbc.Driver";
@@ -50,6 +50,7 @@ public class Dao {
 		return tietokantayhteys;
 	}
 	
+	// haetaan tietokannasta kaikki asiat mitä kokonaisuudessaan halutaan (????)
 	public List<Lainaus> haeLainaukset() throws SQLException {
 		Connection conn = null;
 		PreparedStatement stmt = null;
@@ -116,11 +117,11 @@ public class Dao {
 	}
 	
 	
-	
-	public List<Lainaus> haeLainausNumerot() throws SQLException {
+	// tarvitseeko tätä koko metodia mihinkään???
+	public List<Lainaus> teeLainausNumerot(ResultSet tulosjoukko) throws SQLException {
 		Connection conn = null;
 		PreparedStatement stmt = null;
-		ResultSet tulosjoukko = null; // SQL-kyselyn tulokset
+		//ResultSet tulosjoukko = null; // SQL-kyselyn tulokset
 		List<Lainaus> lainausnumerot = null;
 		NiteenLainaus lainaus = null;
 		
@@ -129,9 +130,10 @@ public class Dao {
 			if (conn != null){
 				conn.setAutoCommit(false);
 				conn.setTransactionIsolation(Connection.TRANSACTION_READ_COMMITTED);
-				String sqlSelect = "SELECT la_numero FROM Lainaus;";
-				stmt = conn.prepareStatement(sqlSelect);
-				tulosjoukko = stmt.executeQuery(sqlSelect);
+				// ????
+				//String sqlSelect = "SELECT la_numero FROM Lainaus;";
+				//stmt = conn.prepareStatement(sqlSelect);
+				//tulosjoukko = stmt.executeQuery(sqlSelect);
 				stmt.close();
 				
 				if (tulosjoukko != null && tulosjoukko.next()){
@@ -166,37 +168,67 @@ public class Dao {
 		return lainausnumerot;
 	}
 	
-private NiteenLainaus teeNiteenLainaus (ResultSet tulosjoukko) throws SQLException {
-		NiteenLainaus niteenLainaus = null;
-		Kirja kirja = null;
-		Nide nide = null;
-		String isbn, nimi, kirjoittaja, painos, kustantaja;
-		int nidenro;
-		Date palautusPvm;
-		
+	// muodostetaan teeLainaukset() -metodin tulosteen perusteella oliot kirja, nide ja niteenlainaus (????)
+	private NiteenLainaus teeNiteenLainaus (ResultSet tulosjoukko) throws SQLException {
+			NiteenLainaus niteenLainaus = null;
+			Kirja kirja = null;
+			Nide nide = null;
+			String isbn, nimi, kirjoittaja, painos, kustantaja;
+			int nidenro;
+			Date palautusPvm;
+			
+			if (tulosjoukko != null) {
+				try {
+					isbn = tulosjoukko.getString("isbn");
+					nimi = tulosjoukko.getString("nimi");
+					kirjoittaja = tulosjoukko.getString("kirjoittaja");
+					painos = tulosjoukko.getString("painos");
+					kustantaja = tulosjoukko.getString("kustantaja");
+					kirja = new Kirja(isbn, nimi, kirjoittaja, painos, kustantaja);
+					
+					nidenro = tulosjoukko.getInt("nidenro");
+					nide = new Nide(kirja, nidenro);
+					
+					palautusPvm = tulosjoukko.getDate("palautuspvm");
+					niteenLainaus = new NiteenLainaus(nide, palautusPvm);
+					
+					} catch (SQLException e) {
+					e.printStackTrace();
+					throw e;
+				}
+			}
+			return niteenLainaus;
+		}
+	
+	// muodostetaan teeLainaukset() -metodin tulosteen perusteella olio asiakas
+	private Asiakas teeAsiakas(ResultSet tulosjoukko) throws SQLException {
+		Asiakas asiakas = null;
+		int numero;
+		String etunimi;
+		String sukunimi, osoite;
+		String postinro;
+		String postitmp;
+		PostinumeroAlue posti = null;
+
 		if (tulosjoukko != null) {
 			try {
-				isbn = tulosjoukko.getString("isbn");
-				nimi = tulosjoukko.getString("nimi");
-				kirjoittaja = tulosjoukko.getString("kirjoittaja");
-				painos = tulosjoukko.getString("painos");
-				kustantaja = tulosjoukko.getString("kustantaja");
-				kirja = new Kirja(isbn, nimi, kirjoittaja, painos, kustantaja);
-				
-				nidenro = tulosjoukko.getInt("nidenro");
-				nide = new Nide(kirja, nidenro);
-				
-				palautusPvm = tulosjoukko.getDate("palautuspvm");
-				niteenLainaus = new NiteenLainaus(nide, palautusPvm);
-				
-				} catch (SQLException e) {
+				numero = tulosjoukko.getInt("as_numero");
+				etunimi = tulosjoukko.getString("as_etunimi");
+				sukunimi = tulosjoukko.getString("as_sukunimi");
+				osoite = tulosjoukko.getString("as_osoite");
+				postinro = tulosjoukko.getString("as_postinro");
+				postitmp = tulosjoukko.getString("postitmp");
+				posti = new PostinumeroAlue(postinro, postitmp);
+				asiakas = new Asiakas(numero, etunimi, sukunimi, osoite, posti);
+			} catch (SQLException e) {
 				e.printStackTrace();
 				throw e;
 			}
 		}
-		return niteenLainaus;
+		return asiakas;
 	}
-	
+
+	// lisätään oliot lainaus, asiakas ja niteenlainaus lainauslistaan(???)
 	private List<Lainaus> teeLainaus(ResultSet tulosjoukko) throws SQLException {
 		Lainaus lainaus = null;
 		int numero, edel;
@@ -208,7 +240,7 @@ private NiteenLainaus teeNiteenLainaus (ResultSet tulosjoukko) throws SQLExcepti
 		
 		muuttuja = tulosjoukko.next();
 		
-		while (muuttuja  ) {
+		while (muuttuja) {
 			try {
 				numero = tulosjoukko.getInt("la_numero");
 				lainausPvm = tulosjoukko.getDate("lainauspvm");
@@ -239,37 +271,7 @@ private NiteenLainaus teeNiteenLainaus (ResultSet tulosjoukko) throws SQLExcepti
 		}
 		return lainausLista;
 	}
-	
-	private Asiakas teeAsiakas(ResultSet tulosjoukko) throws SQLException {
-		Asiakas asiakas = null;
-		int numero;
-		String etunimi;
-		String sukunimi, osoite;
-		String postinro;
-		String postitmp;
-		PostinumeroAlue posti = null;
 
-		if (tulosjoukko != null) {
-			try {
-				numero = tulosjoukko.getInt("as_numero");
-				etunimi = tulosjoukko.getString("as_etunimi");
-				sukunimi = tulosjoukko.getString("as_sukunimi");
-				osoite = tulosjoukko.getString("as_osoite");
-				postinro = tulosjoukko.getString("as_postinro");
-				postitmp = tulosjoukko.getString("postitmp");
-				posti = new PostinumeroAlue(postinro, postitmp);
-				asiakas = new Asiakas(numero, etunimi, sukunimi, osoite, posti);
-			} catch (SQLException e) {
-				e.printStackTrace();
-				throw e;
-			}
-		}
-
-		return asiakas;
-	}
-
-	
-	
 	
 	
 	
